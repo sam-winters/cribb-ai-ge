@@ -38,8 +38,11 @@ class Card:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Card):
-            return NotImplemented
+            return False
         return self.rank == other.rank and self.suit == other.suit
+
+    def __hash__(self) -> int:
+        return hash((self.rank, self.suit))
 
 
 class Deck:
