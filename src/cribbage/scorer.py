@@ -4,131 +4,152 @@ from itertools import combinations
 
 class Scorer:
     @staticmethod
-    def score_hand(hand: List[Card], starter: Card, is_crib: bool = False) -> int:
-        """
-        Score a cribbage hand including the starter card.
-        Returns the total points for the hand.
-        
-        Args:
-            hand: List of cards in the hand (must be exactly 4 cards)
-            starter: The starter card
-            is_crib: Whether this is the crib (affects flush scoring)
-            
-        Raises:
-            ValueError: If hand does not contain exactly 4 cards
-        """
-        if len(hand) != 4:
-            raise ValueError("Hand must contain exactly 4 cards")
-            
-        all_cards = hand + [starter]
-        points = 0
-        
-        # Score 15s
-        points += Scorer._score_15s(all_cards)
-        
-        # Score pairs
-        points += Scorer._score_pairs(all_cards)
-        
-        # Score runs
-        points += Scorer._score_runs(all_cards)
-        
-        # Score flush
-        points += Scorer._score_flush(hand, starter, is_crib)
-        
-        # Score nobs
-        points += Scorer._score_nobs(hand, starter)
-        
-        return points
-        
-    @staticmethod
-    def _score_15s(cards: List[Card]) -> int:
-        """Score combinations of cards that add up to 15."""
-        points = 0
-        # Generate all possible combinations of 2-5 cards
+    def find_fifteens(cards: List[Card]) -> List[Tuple[Card, ...]]:
+        """Find all combinations of cards that sum to 15."""
+        fifteens = []
         for r in range(2, len(cards) + 1):
             for combo in combinations(cards, r):
                 if sum(card.value for card in combo) == 15:
-                    points += 2
-        return points
-        
+                    fifteens.append(combo)
+        return fifteens
+
     @staticmethod
-    def _score_pairs(cards: List[Card]) -> int:
-        """Score pairs of cards with the same rank."""
-        points = 0
-        # Check all possible pairs using combinations to avoid double-counting
-        for card1, card2 in combinations(cards, 2):
-            if card1.rank == card2.rank:
-                points += 2
-        return points
-        
+    def find_pairs(cards: List[Card]) -> List[Tuple[Card, Card]]:
+        """Find all pairs of cards with the same rank."""
+        pairs = []
+        for i in range(len(cards)):
+            for j in range(i + 1, len(cards)):
+                if cards[i].rank == cards[j].rank:
+                    pairs.append((cards[i], cards[j]))
+        return pairs
+
     @staticmethod
-    def _score_runs(cards: List[Card]) -> int:
-        """Score runs of 3 or more consecutive ranks."""
-        # Sort cards by rank
-        sorted_ranks = sorted([card.rank for card in cards])
+    def find_runs(cards: List[Card]) -> List[List[Card]]:
+        """Find all runs of 3 or more consecutive cards.
         
-        # Find the longest possible run
-        max_run_length = 0
-        current_run = 1
-        
-        for i in range(1, len(sorted_ranks)):
-            if sorted_ranks[i] == sorted_ranks[i-1] + 1:
-                current_run += 1
-            elif sorted_ranks[i] != sorted_ranks[i-1]:  # Skip duplicates
-                max_run_length = max(max_run_length, current_run)
-                current_run = 1
-                
-        max_run_length = max(max_run_length, current_run)
-        
-        # Only score if run is 3 or more
-        if max_run_length >= 3:
-            # Count duplicates of each rank in the run
-            rank_counts = {}
-            for card in cards:
-                if card.rank in sorted_ranks[0:max_run_length]:
-                    rank_counts[card.rank] = rank_counts.get(card.rank, 0) + 1
-            
-            # Multiply run length by number of possible combinations
-            total_runs = 1
-            for count in rank_counts.values():
-                total_runs *= count
-                
-            return max_run_length * total_runs
-        return 0
-        
-    @staticmethod
-    def _score_flush(hand: List[Card], starter: Card, is_crib: bool = False) -> int:
+        Returns a list of all possible runs, including double runs.
+        For example, with cards [3♥,4♥,5♥,4♦,5♦], there are four runs of 3:
+        [3♥,4♥,5♥], [3♥,4♥,5♦], [3♥,4♦,5♥], [3♥,4♦,5♦]
         """
-        Score a flush of 4 or 5 cards of the same suit.
+        # Sort cards by rank
+        sorted_cards = sorted(cards, key=lambda c: c.rank)
+        
+        # Group cards by rank to handle duplicates
+        rank_groups = {}
+        for card in sorted_cards:
+            if card.rank not in rank_groups:
+                rank_groups[card.rank] = []
+            rank_groups[card.rank].append(card)
+        
+        # Find all sequences of consecutive ranks
+        ranks = sorted(rank_groups.keys())
+        if not ranks:
+            return []
+            
+        sequences = []
+        current_seq = [ranks[0]]
+        
+        for i in range(1, len(ranks)):
+            if ranks[i] == ranks[i-1] + 1:
+                current_seq.append(ranks[i])
+            else:
+                if len(current_seq) >= 3:
+                    sequences.append(current_seq[:])
+                current_seq = [ranks[i]]
+        
+        if len(current_seq) >= 3:
+            sequences.append(current_seq[:])
+            
+        # Generate all possible runs from the sequences
+        runs = []
+        for sequence in sequences:
+            # For each rank in the sequence, get all cards of that rank
+            rank_cards = [rank_groups[rank] for rank in sequence]
+            # Generate all possible combinations using product
+            from itertools import product
+            for run_cards in product(*rank_cards):
+                runs.append(list(run_cards))
+                
+        return runs
+
+    @staticmethod
+    def find_flush(cards: List[Card], starter: Card, is_crib: bool = False) -> int:
+        """Find if there is a flush and return the points.
         
         For a regular hand:
-        - 4 points for 4 cards of same suit in hand
-        - 5 points if starter matches suit
+        - 4 cards of the same suit in the hand = 4 points
+        - 5 cards of the same suit (including starter) = 5 points
         
         For the crib:
-        - 5 points only if all 5 cards (including starter) are same suit
-        - No points for 4-card flush
+        - Only 5 cards of the same suit (including starter) = 5 points
+        - Otherwise = 0 points
         """
+        # Count suits in the hand (excluding starter)
+        suits = [card.suit for card in cards]
+        suit_counts = {suit: suits.count(suit) for suit in set(suits)}
+        max_count = max(suit_counts.values())
+        
         if is_crib:
-            # For crib, all 5 cards must be same suit
-            all_cards = hand + [starter]
-            if all(card.suit == all_cards[0].suit for card in all_cards):
+            # For crib, all 5 cards must match (including starter)
+            if max_count == 4 and starter.suit in suit_counts and suit_counts[starter.suit] == 4:
                 return 5
             return 0
         else:
-            # For regular hand, check 4-card flush first
-            if all(card.suit == hand[0].suit for card in hand):
-                # If starter matches, score 5
-                if starter.suit == hand[0].suit:
+            # For regular hand, either 4 cards match or all 5 match
+            if max_count >= 4:
+                # Check if starter matches the flush suit
+                if starter.suit in suit_counts and suit_counts[starter.suit] == max_count:
                     return 5
-                # Otherwise score 4
                 return 4
             return 0
-        
+
     @staticmethod
-    def _score_nobs(hand: List[Card], starter: Card) -> int:
-        """Score nobs (Jack of same suit as starter)."""
-        for card in hand:
-            if card.rank == 11 and card.suit == starter.suit:  # Jack is rank 11
-                return 1
-        return 0 
+    def find_nobs(cards: List[Card], starter: Card) -> bool:
+        """Find if there is a nobs (Jack of the same suit as the starter)."""
+        for card in cards:
+            if card.rank == 11 and card.suit == starter.suit:
+                return True
+        return False
+
+    @staticmethod
+    def score_hand(cards: List[Card], starter: Card, is_crib: bool = False) -> int:
+        """Score a hand of cards with the given starter card."""
+        
+        # validate the hand
+        if not Scorer.is_valid_hand(cards):
+            raise ValueError("Invalid hand")
+        
+        all_cards = cards + [starter]
+        points = 0
+
+        # Score fifteens
+        fifteens = Scorer.find_fifteens(all_cards)
+        points += len(fifteens) * 2
+
+        # Score pairs
+        pairs = Scorer.find_pairs(all_cards)
+        points += len(pairs) * 2
+
+        # Score runs
+        runs = Scorer.find_runs(all_cards)
+        if runs:
+            # Count all valid runs
+            points += len(runs) * len(runs[0])
+
+        # Score flush
+        points += Scorer.find_flush(cards, starter, is_crib)
+
+        # Score nobs
+        if Scorer.find_nobs(cards, starter):
+            points += 1
+
+        return points
+
+    @staticmethod
+    def is_valid_hand(cards: List[Card]) -> bool:
+        """Check if the hand is valid."""
+
+        # must have 4 cards and no duplicates
+        return len(cards) == 4 and len(set(cards)) == 4
+    
+

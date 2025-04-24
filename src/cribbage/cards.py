@@ -47,38 +47,32 @@ class Card:
 
 class Deck:
     def __init__(self):
-        self.cards: List[Card] = []
-        self.reset()
+        self.cards = []
+        for suit in Suit:
+            for rank in range(1, 14):
+                self.cards.append(Card(rank, suit))
 
-    def reset(self) -> None:
-        """Resets the deck to a full set of 52 cards."""
-        self.cards = [
-            Card(rank, suit)
-            for suit in Suit
-            for rank in range(1, 14)
-        ]
+    def __iter__(self):
+        return iter(self.cards)
 
-    def shuffle(self) -> None:
-        """Shuffles the deck randomly."""
-        random.shuffle(self.cards)
+    def __len__(self):
+        return len(self.cards)
 
-    def draw(self) -> Optional[Card]:
-        """Draws a card from the top of the deck."""
+    def draw(self):
+        """Draw a card from the deck."""
         if not self.cards:
-            return None
+            raise ValueError("Deck is empty")
         return self.cards.pop()
 
-    def draw_multiple(self, count: int) -> List[Card]:
-        """Draws multiple cards from the deck."""
-        drawn = []
-        for _ in range(count):
-            card = self.draw()
-            if card:
-                drawn.append(card)
-        return drawn
+    def draw_multiple(self, count):
+        """Draw multiple cards from the deck."""
+        if count > len(self.cards):
+            raise ValueError("Not enough cards in deck")
+        return [self.cards.pop() for _ in range(count)]
 
-    def __len__(self) -> int:
-        return len(self.cards)
+    def shuffle(self):
+        """Shuffle the deck."""
+        random.shuffle(self.cards)
 
     def __str__(self) -> str:
         return f"Deck({len(self.cards)} cards)" 

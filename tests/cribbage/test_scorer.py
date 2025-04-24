@@ -1,16 +1,18 @@
 import pytest
-from .cards import Card, Suit
-from .scorer import Scorer
+from src.cribbage.cards import Card, Suit
+from src.cribbage.scorer import Scorer
 
 def test_hand_size_validation():
     """Test that scoring requires exactly 4 cards in hand."""
     # Too few cards
+    print("testing too few cards")
     hand = [Card(10, Suit.HEARTS), Card(5, Suit.HEARTS)]
     starter = Card(2, Suit.HEARTS)
     with pytest.raises(ValueError):
         Scorer.score_hand(hand, starter)
         
     # Too many cards
+    print("testing too many cards")
     hand = [Card(10, Suit.HEARTS), Card(5, Suit.HEARTS), 
             Card(2, Suit.HEARTS), Card(3, Suit.HEARTS), Card(4, Suit.HEARTS)]
     starter = Card(2, Suit.HEARTS)
@@ -42,7 +44,7 @@ def test_score_pairs():
     # One pair
     hand = [Card(5, Suit.HEARTS), Card(5, Suit.DIAMONDS), 
             Card(1, Suit.HEARTS), Card(6, Suit.HEARTS)]
-    starter = Card(2, Suit.HEARTS)
+    starter = Card(2, Suit.CLUBS)
     assert Scorer.score_hand(hand, starter) == 2
     
     # Two pairs
@@ -60,7 +62,7 @@ def test_score_pairs():
     # Test where the pair comes from the starter card
     hand = [Card(9, Suit.HEARTS), Card(5, Suit.DIAMONDS), 
             Card(2, Suit.HEARTS), Card(3, Suit.HEARTS)]
-    starter = Card(9, Suit.HEARTS)
+    starter = Card(9, Suit.CLUBS)
     assert Scorer.score_hand(hand, starter) == 2
 
 def test_score_runs():
@@ -76,12 +78,24 @@ def test_score_runs():
             Card(7, Suit.HEARTS), Card(8, Suit.DIAMONDS)]
     starter = Card(2, Suit.HEARTS)
     assert Scorer.score_hand(hand, starter) == 10  # 4 points for run + 6 points for three 15s (7+8, 5+6+4, 5+7+3)
+
+    # Run of 5
+    hand = [Card(13, Suit.HEARTS), Card(12, Suit.HEARTS), 
+            Card(11, Suit.CLUBS), Card(10, Suit.DIAMONDS)]
+    starter = Card(9, Suit.HEARTS)
+    assert Scorer.score_hand(hand, starter) == 5
     
     # Double run of 3
     hand = [Card(5, Suit.HEARTS), Card(5, Suit.DIAMONDS), 
             Card(6, Suit.HEARTS), Card(7, Suit.HEARTS)]
     starter = Card(2, Suit.HEARTS)
     assert Scorer.score_hand(hand, starter) == 10  # Two runs of 3 plus pair
+
+    # bug case from validation 3♦ 6♠ 3♣ 7♦ with starter 5♥
+    hand = [Card(3, Suit.DIAMONDS), Card(6, Suit.SPADES), 
+            Card(3, Suit.CLUBS), Card(7, Suit.DIAMONDS)]
+    starter = Card(5, Suit.HEARTS)
+    assert Scorer.score_hand(hand, starter) == 9  # Two runs of 3 plus pair
 
 def test_score_flush():
     """Test scoring flushes."""
@@ -139,4 +153,51 @@ def test_combination_scoring():
     hand = [Card(5, Suit.HEARTS), Card(5, Suit.CLUBS), 
             Card(5, Suit.DIAMONDS), Card(11, Suit.SPADES)]
     starter = Card(5, Suit.SPADES)
-    assert Scorer.score_hand(hand, starter) == 29  # 6 + 12 + 0 + 0 + 0 + 11 (pairs) 
+    assert Scorer.score_hand(hand, starter) == 29  # 6 + 12 + 0 + 0 + 0 + 11 (pairs)
+
+def test_four_of_a_kind():
+    """Test scoring four of a kind."""
+    hand = [Card(1, Suit.HEARTS), Card(1, Suit.CLUBS), 
+            Card(1, Suit.DIAMONDS), Card(1, Suit.SPADES)]
+    starter = Card(10, Suit.HEARTS)
+    assert Scorer.score_hand(hand, starter) == 12  # 6 pairs
+
+def test_multiple_runs():
+    """Test scoring with multiple runs."""
+    # Two separate runs
+    hand = [Card(3, Suit.HEARTS), Card(4, Suit.HEARTS), 
+            Card(5, Suit.HEARTS), Card(4, Suit.DIAMONDS)]
+    starter = Card(5, Suit.DIAMONDS)
+    assert Scorer.score_hand(hand, starter) == 16  # Two runs of 3 plus pair
+
+    # Overlapping runs
+    hand = [Card(3, Suit.HEARTS), Card(4, Suit.CLUBS), 
+            Card(5, Suit.HEARTS), Card(6, Suit.HEARTS)]
+    starter = Card(7, Suit.DIAMONDS)
+    assert Scorer.score_hand(hand, starter) == 9  # One run of 5
+
+def test_all_face_cards():
+    """Test scoring with all face cards."""
+    hand = [Card(11, Suit.HEARTS), Card(12, Suit.HEARTS), 
+            Card(13, Suit.HEARTS), Card(11, Suit.DIAMONDS)]
+    starter = Card(12, Suit.CLUBS)
+    assert Scorer.score_hand(hand, starter) == 16  # Two pairs
+
+def test_nobs_and_flush_and_run():
+    """Test scoring with both nobs and flush and run."""
+    hand = [Card(11, Suit.HEARTS), Card(2, Suit.HEARTS), 
+            Card(3, Suit.HEARTS), Card(4, Suit.HEARTS)]
+    starter = Card(5, Suit.HEARTS)
+    assert Scorer.score_hand(hand, starter) == 14  # 5-card flush + nobs + run of 4
+
+def test_complex_combinations():
+    """Test scoring with multiple complex combinations."""
+    # Hand: 5♥ 5♣ 6♦ 7♠ (starter: 8♥)
+    # Should score:
+    # - One 15 (7+8)
+    # - One pair (5s)
+    # - Two runs of 4 (5-6-7-8)
+    hand = [Card(5, Suit.HEARTS), Card(5, Suit.CLUBS), 
+            Card(6, Suit.DIAMONDS), Card(7, Suit.SPADES)]
+    starter = Card(8, Suit.HEARTS)
+    assert Scorer.score_hand(hand, starter) == 12  # 2 + 2 + 3 

@@ -1,7 +1,7 @@
 from typing import List
 import pytest
-from .cards import Card, Suit
-from .hand import Hand
+from src.cribbage.cards import Card, Suit
+from src.cribbage.hand import Hand
 
 def test_hand_initialization():
     """Test that a new hand is empty."""
@@ -166,4 +166,56 @@ def test_string_representation():
     
     # Play another card
     hand.play_card(card3)
-    assert str(hand) == "A♥* 2♥^ 3♥*" 
+    assert str(hand) == "A♥* 2♥^ 3♥*"
+
+def test_hand_size_limit():
+    """Test that hand size is limited to 4 cards."""
+    hand = Hand()
+    cards = [
+        Card(1, Suit.HEARTS),
+        Card(2, Suit.HEARTS),
+        Card(3, Suit.HEARTS),
+        Card(4, Suit.HEARTS),
+        Card(5, Suit.HEARTS)  # This one should not be added
+    ]
+    
+    # Add first 4 cards
+    for card in cards[:4]:
+        hand.add_card(card)
+    
+    # Try to add 5th card
+    with pytest.raises(ValueError):
+        hand.add_card(cards[4])
+
+def test_duplicate_cards():
+    """Test handling of duplicate cards."""
+    hand = Hand()
+    card = Card(1, Suit.HEARTS)
+    
+    # Add same card twice
+    hand.add_card(card)
+
+    # expect an error adding the same card twice
+    with pytest.raises(ValueError):
+        hand.add_card(card)
+    
+    assert len(hand) == 1  # Only one card added
+    assert len(hand.get_cards()) == 1
+
+def test_all_card_states():
+    """Test all possible card states in string representation."""
+    hand = Hand()
+    card1 = Card(1, Suit.HEARTS)  # Unplayed
+    card2 = Card(2, Suit.HEARTS)  # Played
+    card3 = Card(3, Suit.HEARTS)  # Discarded
+    card4 = Card(4, Suit.HEARTS)  # Unplayed
+    
+    hand.add_card(card1)
+    hand.add_card(card2)
+    hand.add_card(card3)
+    hand.add_card(card4)
+    
+    hand.play_card(card2)
+    hand.discard_card(card3)
+    
+    assert str(hand) == "A♥ 2♥* 3♥^ 4♥" 
