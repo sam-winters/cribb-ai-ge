@@ -73,6 +73,13 @@ class Deck:
     def shuffle(self):
         """Shuffle the deck."""
         random.shuffle(self.cards)
+        
+    def reset(self) -> None:
+        """Reset the deck to a full, unshuffled state."""
+        self.cards = []
+        for suit in Suit:
+            for rank in range(1, 14):
+                self.cards.append(Card(rank, suit))
 
     def __str__(self) -> str:
         return f"Deck({len(self.cards)} cards)" 

@@ -4,13 +4,14 @@ from .cards import Card
 class Hand:
     def __init__(self):
         self.cards = []
+        self.original_hand_cards = []  # Only the 4 cards that make up the original hand
         self.played_cards = []
         self.discarded_cards = []
         
     def add_card(self, card: Card) -> None:
         """Add a card to the hand."""
-        if len(self.cards) >= 4:
-            raise ValueError("Hand cannot contain more than 4 cards")
+        if len(self.cards) >= 6:
+            raise ValueError("Hand cannot contain more than 6 cards")
         if card in self.cards:
             raise ValueError("Card already in hand")
         self.cards.append(card)
@@ -46,6 +47,7 @@ class Hand:
     def clear(self) -> None:
         """Clear all cards from the hand."""
         self.cards = []
+        self.original_hand_cards = []
         self.played_cards = []
         self.discarded_cards = []
         
@@ -64,6 +66,11 @@ class Hand:
     def get_discarded_cards(self) -> List[Card]:
         """Get all discarded cards."""
         return self.discarded_cards
+        
+    def get_scoring_cards(self) -> List[Card]:
+        """Get all cards that should be scored at the end of the round.
+        Returns the 4 cards that weren't discarded to the crib."""
+        return [card for card in self.cards if card not in self.discarded_cards]
         
     def count_points(self) -> int:
         """Count points in the hand. To be implemented with cribbage scoring rules."""
@@ -84,4 +91,8 @@ class Hand:
                 card_strings.append(f"{card}^")
             else:
                 card_strings.append(str(card))
-        return " ".join(card_strings) 
+        return " ".join(card_strings)
+
+    def set_starter_card(self, card):
+        """Set the starter card for scoring."""
+        self.starter = card 

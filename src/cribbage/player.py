@@ -25,6 +25,10 @@ class Player:
         """Get list of cards that haven't been played or discarded yet."""
         return self.hand.get_unplayed_cards()
         
+    def get_scoring_cards(self) -> List[Card]:
+        """Get list of cards that should be scored at the end of the round."""
+        return self.hand.get_scoring_cards()
+        
     def get_discarded_cards(self) -> List[Card]:
         """Get list of cards that have been discarded to the crib."""
         return self.hand.get_discarded_cards()
@@ -32,6 +36,10 @@ class Player:
     def add_points(self, points: int) -> None:
         """Add points to the player's score."""
         self.score += points
+        
+    def reset_score(self) -> None:
+        """Reset the player's score to 0."""
+        self.score = 0
         
     def get_score(self) -> int:
         """Get the player's current score."""

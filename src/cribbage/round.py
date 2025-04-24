@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from .cards import Card, Deck
 from .player import Player
 from .board import Board
@@ -68,11 +68,56 @@ class Round:
         """Move to the next player."""
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
         
-    def play_card(self, player: Player, card: Card) -> int:
+    def play_card(self, player: Player, card: Card) -> Tuple[int, bool]:
         """
-        Attempt to play a card. Returns the new count or -1 if the play is invalid.
+        Attempt to play a card. Returns a tuple of:
+        - The new count (or -1 if the play is invalid)
+        - Whether the play area should be reset (reached 31 or all players said "go")
         """
-        return self.board.add_to_play_area(card)
+        if player != self.get_current_player():
+            return -1, False
+            
+        new_count = self.board.add_to_play_area(card)
+        if new_count == -1:
+            return -1, False
+            
+        # Remove the card from the player's hand
+        player.play_card(card)
+        
+        # Check if we need to reset the play area
+        should_reset = False
+        if new_count == 31:
+            # Player gets 2 points for reaching 31 exactly
+            player.add_points(2)
+            should_reset = True
+        elif self.board.is_play_round_over(len(self.players)):
+            # Last player to play gets 1 point when all players say "go"
+            player.add_points(1)
+            should_reset = True
+            
+        if should_reset:
+            self.board.reset_play_area()
+        else:
+            # Only move to next player if we're not resetting
+            self.next_player()
+            
+        return new_count, should_reset
+        
+    def player_says_go(self, player: Player) -> bool:
+        """
+        Record that a player has said "go".
+        Returns True if the play area should be reset (all players have said "go").
+        """
+        if player != self.get_current_player():
+            return False
+            
+        self.board.player_says_go(self.current_player_index)
+        self.next_player()
+        
+        if self.board.is_play_round_over(len(self.players)):
+            self.board.reset_play_area()
+            return True
+        return False
         
     def is_round_over(self) -> bool:
         """Check if the round is over (all cards played)."""
